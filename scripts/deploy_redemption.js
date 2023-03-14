@@ -8,9 +8,9 @@ const hre = require("hardhat");
 
 async function main() {
 
-  let fromToken = ""; //must be entered
-  let toTokens = [""]; //must be entered
-  let exchangeRates = [ethers.utils.parseEther("")]; //must be entered
+  let fromToken = "0x29127fe04ffa4c32acac0ffe17280abd74eac313"; //must be entered
+  let toTokens = ["0x55c08ca52497e2f1534b59e2917bf524d4765257", "0xdac17f958d2ee523a2206206994597c13d831ec7"]; //must be entered
+  let exchangeRates = ["", ""]; //must be entered
 
   const redemption = await Redemption.deploy(fromToken, toTokens, exchangeRates);
 

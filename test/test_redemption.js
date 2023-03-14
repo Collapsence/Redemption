@@ -89,6 +89,7 @@ describe("Redemption contract", function () {
 
       const toToken1Balance = await toToken1.balanceOf(user.address);
       const toToken2Balance = await toToken2.balanceOf(user.address);
+
       expect(toToken1Balance).to.equal(fromTokenAmount.mul(exchangeRate1).div(ethers.constants.WeiPerEther));
       expect(toToken2Balance).to.equal(fromTokenAmount.mul(exchangeRate2).div(ethers.constants.WeiPerEther));
     });
@@ -242,29 +243,21 @@ describe("Redemption contract", function () {
       );
     });
     it("should remove the token from the list of supported tokens", async function () {
-      await redemptionContract.removeToken(toToken2.address);
+      await redemptionContract.removeToken(1);
 
       expect(await redemptionContract.toTokens(0)).to.equal(toToken1.address);
       expect(await redemptionContract.exchangeRates(toToken2.address)).to.equal(0);
     });
 
-    it("should revert if the token does not exist", async function () {
-      await redemptionContract.removeToken(toToken2.address);
-      await expect(redemptionContract.removeToken(toToken2.address)).to.be.revertedWith("Token does not exist");
-
-      expect(await redemptionContract.toTokens(0)).to.equal(toToken1.address);
-      expect(await redemptionContract.exchangeRates(toToken1.address)).to.equal(exchangeRate1);
-    });
-
     it("should revert if sender in not owner", async function () {
-      await expect(redemptionContract.connect(user).removeToken(toToken2.address)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(redemptionContract.connect(user).removeToken(1)).to.be.revertedWith("Ownable: caller is not the owner");
 
       expect(await redemptionContract.toTokens(1)).to.equal(toToken2.address);
       expect(await redemptionContract.exchangeRates(toToken2.address)).to.equal(exchangeRate2);
     });
 
     it("should emit an TokenRemoved event on successful remove token", async function () {
-      let tx = await redemptionContract.removeToken(toToken2.address);
+      let tx = await redemptionContract.removeToken(1);
 
       await expect(tx)
         .to.emit(redemptionContract, "TokenRemoved")

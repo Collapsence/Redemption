@@ -3,15 +3,21 @@ pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./libraries/BoringERC20.sol";
 
-contract Redemption is Ownable, Pausable {
+contract Redemption is Ownable, Pausable, ReentrancyGuard {
+    using BoringERC20 for IERC20;
     IERC20 public fromToken;
     address[] public toTokens;
     mapping(address => uint256) public exchangeRates;
     uint256 public constant denominator = 10 ** 18;
 
-    event Redeemed(address indexed user, address indexed toToken, uint256 amount);
+    event Redeemed(
+        address indexed user,
+        address indexed toToken,
+        uint256 amount
+    );
     event TokenAdded(address indexed token, uint256 exchangeRate);
     event TokenRemoved(address indexed token);
     event ExchangeRateChanged(address indexed token, uint256 exchangeRate);
@@ -37,22 +43,36 @@ contract Redemption is Ownable, Pausable {
      * @dev Function for redeeming fromToken for other ERC20 tokens.
      * @param amount The amount of fromToken to be redeemed.
      */
-    function redeem(uint256 amount) public whenNotPaused {
+    function redeem(uint256 amount) public whenNotPaused nonReentrant {
         require(
-            fromToken.balanceOf(msg.sender) >= amount,
+            fromToken.safeBalanceOf(msg.sender) >= amount,
             "Insufficient balance"
         );
 
-        fromToken.transferFrom(msg.sender, address(this), amount);
+        fromToken.safeTransferFrom(msg.sender, address(this), amount);
+        uint8 _fromDecimals = IStrictERC20(address(fromToken)).decimals();
 
         for (uint256 i = 0; i < toTokens.length; i++) {
-            uint256 toAmount = (amount * exchangeRates[toTokens[i]]) /
-                denominator;
+            uint256 _amount = amount;
+            if (_fromDecimals > IStrictERC20(toTokens[i]).decimals()) {
+                _amount =
+                    amount /
+                    (_fromDecimals - IStrictERC20(toTokens[i]).decimals());
+            }
+            if (_fromDecimals < IStrictERC20(toTokens[i]).decimals()) {
+                _amount =
+                    amount *
+                    (IStrictERC20(toTokens[i]).decimals() - _fromDecimals);
+            }
+            require(_amount > 0, "Amount not enough");
+
+            uint256 toAmount = (_amount * exchangeRates[toTokens[i]]) /
+                10 ** IStrictERC20(toTokens[i]).decimals();
             require(
-                IERC20(toTokens[i]).balanceOf(address(this)) >= toAmount,
+                IERC20(toTokens[i]).safeBalanceOf(address(this)) >= toAmount,
                 "Insufficient balance of contract"
             );
-            IERC20(toTokens[i]).transfer(msg.sender, toAmount);
+            IERC20(toTokens[i]).safeTransfer(msg.sender, toAmount);
             emit Redeemed(msg.sender, toTokens[i], toAmount);
         }
     }
@@ -64,6 +84,7 @@ contract Redemption is Ownable, Pausable {
      */
     function addToken(address token, uint256 exchangeRate) public onlyOwner {
         require(token != address(0), "Token address cannot be zero");
+        require(exchangeRate > 0, "ExchangeRate cannot be 0");
         require(exchangeRates[token] == 0, "Token already exists");
 
         toTokens.push(token);
@@ -73,21 +94,14 @@ contract Redemption is Ownable, Pausable {
 
     /**
      * @dev Function that allows the owner to remove a supported token.
-     * @param token The address of the token being removed.
+     * @param index The index of the token being removed.
      */
-    function removeToken(address token) public onlyOwner {
-        require(exchangeRates[token] > 0, "Token does not exist");
-
-        for (uint256 i = 0; i < toTokens.length; i++) {
-            if (toTokens[i] == token) {
-                toTokens[i] = toTokens[toTokens.length - 1];
-                toTokens.pop();
-                break;
-            }
-        }
-
-        delete exchangeRates[token];
-        emit TokenRemoved(token);
+    function removeToken(uint256 index) public onlyOwner {
+        address _token = toTokens[index];
+        delete exchangeRates[_token];
+        toTokens[index] = toTokens[toTokens.length - 1];
+        toTokens.pop();
+        emit TokenRemoved(_token);
     }
 
     /**
@@ -117,7 +131,7 @@ contract Redemption is Ownable, Pausable {
      * @param token Token address for emergency withdrawal.
      */
     function emergencyWithdraw(IERC20 token) external onlyOwner {
-        token.transfer(owner(), token.balanceOf(address(this)));
+        token.safeTransfer(owner(), token.balanceOf(address(this)));
     }
 
     /**
