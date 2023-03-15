@@ -5,7 +5,7 @@ pragma solidity 0.8.19;
 contract ERC20Mock {
     string public constant name = "Mock Token";
     string public constant symbol = "MKT";
-    uint8 public constant decimals = 18;
+    uint8 public immutable decimals;
     uint256 public totalSupply;
 
     mapping(address => uint256) balances;
@@ -13,7 +13,8 @@ contract ERC20Mock {
 
     address public owner;
 
-    constructor(address _owner, uint256 initialSupply) {
+    constructor(address _owner, uint256 initialSupply, uint8 _decimals) {
+        decimals = _decimals;
         totalSupply = initialSupply;
         balances[_owner] = initialSupply;
         owner = _owner;

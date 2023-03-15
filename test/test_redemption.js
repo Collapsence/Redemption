@@ -8,8 +8,12 @@ describe("Redemption contract", function () {
   const fromTokenAmount = ethers.utils.parseEther("10");
   const toToken1Amount = ethers.utils.parseEther("50");
   const toToken2Amount = ethers.utils.parseEther("40");
+  const toToken3Amount = ethers.BigNumber.from(40).mul(ethers.BigNumber.from(10).pow(6));
+  const toToken4Amount = ethers.BigNumber.from(40).mul(ethers.BigNumber.from(10).pow(20));
   const exchangeRate1 = ethers.utils.parseEther("2");
   const exchangeRate2 = ethers.utils.parseEther("3");
+  const exchangeRate3 = ethers.BigNumber.from(2).mul(ethers.BigNumber.from(10).pow(6));
+  const exchangeRate4 = ethers.BigNumber.from(3).mul(ethers.BigNumber.from(10).pow(20));
 
   describe("Constructor", function () {
     beforeEach(async function () {
@@ -17,9 +21,9 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(
@@ -67,19 +71,23 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
+      toToken3 = await ERC20Mock.deploy(owner.address, toToken3Amount, 6);
+      toToken4 = await ERC20Mock.deploy(owner.address, toToken4Amount, 20);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(
         fromToken.address,
-        [toToken1.address, toToken2.address],
-        [exchangeRate1, exchangeRate2]
+        [toToken1.address, toToken2.address, toToken3.address, toToken4.address],
+        [exchangeRate1, exchangeRate2, exchangeRate3, exchangeRate4]
       );
       await fromToken.transfer(user.address, fromTokenAmount);
       await toToken1.transfer(redemptionContract.address, toToken1Amount);
       await toToken2.transfer(redemptionContract.address, toToken2Amount);
+      await toToken3.transfer(redemptionContract.address, toToken3Amount);
+      await toToken4.transfer(redemptionContract.address, toToken4Amount);
     });
 
     it("should redeem fromToken for toToken1 and toToken2", async function () {
@@ -89,9 +97,21 @@ describe("Redemption contract", function () {
 
       const toToken1Balance = await toToken1.balanceOf(user.address);
       const toToken2Balance = await toToken2.balanceOf(user.address);
+      const toToken3Balance = await toToken3.balanceOf(user.address);
+      const toToken4Balance = await toToken4.balanceOf(user.address);
 
       expect(toToken1Balance).to.equal(fromTokenAmount.mul(exchangeRate1).div(ethers.constants.WeiPerEther));
       expect(toToken2Balance).to.equal(fromTokenAmount.mul(exchangeRate2).div(ethers.constants.WeiPerEther));
+      expect(toToken3Balance).to.equal(fromTokenAmount.div(ethers.BigNumber.from(10).pow(12)).mul(exchangeRate3).div(ethers.BigNumber.from(10).pow(6)));
+      expect(toToken4Balance).to.equal(fromTokenAmount.mul(ethers.BigNumber.from(10).pow(2)).mul(exchangeRate4).div(ethers.BigNumber.from(10).pow(20)));
+    });
+
+    it("should revert if amount fromToken not enough", async function () {
+      await fromToken.connect(user).approve(redemptionContract.address, fromTokenAmount);
+
+      await expect(
+        redemptionContract.connect(user).redeem(1)
+      ).to.be.revertedWith("Amount not enough");
     });
 
     it("should revert if user has insufficient balance of fromToken", async function () {
@@ -119,6 +139,12 @@ describe("Redemption contract", function () {
       await expect(
         redemptionContract.connect(user).redeem(fromTokenAmount)
       ).to.be.revertedWith("Pausable: paused");
+    });
+
+    it("should revert if amount fromToken not enough", async function () {
+      await expect(
+        redemptionContract.connect(user).calculateRedeem(1)
+      ).to.be.revertedWith("Amount not enough");
     });
 
     it("should emit an Redeemed event on successful redeem", async function () {
@@ -177,9 +203,9 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(
@@ -193,6 +219,13 @@ describe("Redemption contract", function () {
 
       expect(await redemptionContract.toTokens(1)).to.equal(toToken2.address);
       expect(await redemptionContract.exchangeRates(toToken2.address)).to.equal(exchangeRate2);
+    });
+
+    it("should revert if exchangeRate be 0", async function () {
+      await expect(redemptionContract.addToken(toToken2.address, 0)).to.be.revertedWith("ExchangeRate cannot be 0");
+
+      expect(await redemptionContract.toTokens(0)).to.equal(toToken1.address);
+      expect(await redemptionContract.exchangeRates(toToken1.address)).to.equal(exchangeRate1);
     });
 
     it("should revert if the token is already in the list", async function () {
@@ -231,9 +264,9 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(
@@ -271,9 +304,9 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(
@@ -302,9 +335,9 @@ describe("Redemption contract", function () {
       [owner, user] = await ethers.getSigners();
 
       const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount);
-      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount);
-      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount);
+      fromToken = await ERC20Mock.deploy(owner.address, fromTokenAmount, 18);
+      toToken1 = await ERC20Mock.deploy(owner.address, toToken1Amount, 18);
+      toToken2 = await ERC20Mock.deploy(owner.address, toToken2Amount, 18);
 
       const Redemption = await ethers.getContractFactory("Redemption");
       redemptionContract = await Redemption.deploy(

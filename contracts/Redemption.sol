@@ -57,10 +57,10 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
             uint8 _toDecimals = IERC20(toTokens[i]).safeDecimals();
 
             if (fromDecimals > _toDecimals) {
-                _amount = amount / (fromDecimals - _toDecimals);
+                _amount = amount / 10 ** (fromDecimals - _toDecimals);
             }
             if (fromDecimals < _toDecimals) {
-                _amount = amount * (_toDecimals - fromDecimals);
+                _amount = amount * 10 ** (_toDecimals - fromDecimals);
             }
 
             require(_amount > 0, "Amount not enough");
@@ -146,10 +146,10 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
             uint256 _toDecimals = IERC20(toTokens[i]).safeDecimals();
 
             if (fromDecimals > _toDecimals) {
-                _amount = amount / (fromDecimals - _toDecimals);
+                _amount = amount / 10 ** (fromDecimals - _toDecimals);
             }
             if (fromDecimals < _toDecimals) {
-                _amount = amount * (_toDecimals - fromDecimals);
+                _amount = amount * 10 ** (_toDecimals - fromDecimals);
             }
 
             require(_amount > 0, "Amount not enough");
