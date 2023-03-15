@@ -10,8 +10,8 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
     using BoringERC20 for IERC20;
     IERC20 public fromToken;
     address[] public toTokens;
+    uint8 public immutable fromDecimals;
     mapping(address => uint256) public exchangeRates;
-    uint256 public immutable fromDecimals;
 
     event Redeemed(
         address indexed user,
@@ -54,7 +54,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
 
         for (uint256 i = 0; i < toTokens.length; i++) {
             uint256 _amount = amount;
-            uint256 _toDecimals = IERC20(toTokens[i]).safeDecimals();
+            uint8 _toDecimals = IERC20(toTokens[i]).safeDecimals();
 
             if (fromDecimals > _toDecimals) {
                 _amount = amount / (fromDecimals - _toDecimals);
