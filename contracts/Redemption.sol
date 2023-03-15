@@ -11,7 +11,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
     IERC20 public fromToken;
     address[] public toTokens;
     mapping(address => uint256) public exchangeRates;
-    uint256 public constant denominator = 10 ** 18;
+    uint256 public immutable fromDecimals;
 
     event Redeemed(
         address indexed user,
@@ -31,6 +31,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
             _toTokens.length == _exchangeRates.length,
             "Array lengths must be equal"
         );
+        fromDecimals = fromToken.safeDecimals();
         fromToken = _fromToken;
         toTokens = _toTokens;
         for (uint256 i = 0; i < toTokens.length; i++) {
@@ -50,24 +51,22 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
         );
 
         fromToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint8 _fromDecimals = IStrictERC20(address(fromToken)).decimals();
 
         for (uint256 i = 0; i < toTokens.length; i++) {
             uint256 _amount = amount;
-            if (_fromDecimals > IStrictERC20(toTokens[i]).decimals()) {
-                _amount =
-                    amount /
-                    (_fromDecimals - IStrictERC20(toTokens[i]).decimals());
+            uint256 _toDecimals = IERC20(toTokens[i]).safeDecimals();
+
+            if (fromDecimals > _toDecimals) {
+                _amount = amount / (fromDecimals - _toDecimals);
             }
-            if (_fromDecimals < IStrictERC20(toTokens[i]).decimals()) {
-                _amount =
-                    amount *
-                    (IStrictERC20(toTokens[i]).decimals() - _fromDecimals);
+            if (fromDecimals < _toDecimals) {
+                _amount = amount * (_toDecimals - fromDecimals);
             }
+
             require(_amount > 0, "Amount not enough");
 
             uint256 toAmount = (_amount * exchangeRates[toTokens[i]]) /
-                10 ** IStrictERC20(toTokens[i]).decimals();
+                10 ** _toDecimals;
             require(
                 IERC20(toTokens[i]).safeBalanceOf(address(this)) >= toAmount,
                 "Insufficient balance of contract"
@@ -143,7 +142,21 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
     ) external view returns (address[] memory, uint256[] memory) {
         uint[] memory toAmount = new uint[](toTokens.length);
         for (uint256 i = 0; i < toTokens.length; i++) {
-            toAmount[i] = (amount * exchangeRates[toTokens[i]]) / denominator;
+            uint256 _amount = amount;
+            uint256 _toDecimals = IERC20(toTokens[i]).safeDecimals();
+
+            if (fromDecimals > _toDecimals) {
+                _amount = amount / (fromDecimals - _toDecimals);
+            }
+            if (fromDecimals < _toDecimals) {
+                _amount = amount * (_toDecimals - fromDecimals);
+            }
+
+            require(_amount > 0, "Amount not enough");
+
+            toAmount[i] =
+                (_amount * exchangeRates[toTokens[i]]) /
+                10 ** _toDecimals;
         }
         return (toTokens, toAmount);
     }
