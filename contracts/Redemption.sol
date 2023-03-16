@@ -31,8 +31,8 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
             _toTokens.length == _exchangeRates.length,
             "Array lengths must be equal"
         );
-        fromDecimals = fromToken.safeDecimals();
         fromToken = _fromToken;
+        fromDecimals = fromToken.safeDecimals();
         toTokens = _toTokens;
         for (uint256 i = 0; i < toTokens.length; i++) {
             require(_exchangeRates[i] > 0, "Invalid exchange rate");
