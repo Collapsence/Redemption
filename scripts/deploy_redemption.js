@@ -8,20 +8,20 @@ const hre = require("hardhat");
 const { ethers } = require("hardhat");
 
 async function main() {
+  //For mainnet
+  let fromToken = "0x29127fe04ffa4c32acac0ffe17280abd74eac313"; //must be entered
+  let toTokens = ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0x55c08ca52497e2f1534b59e2917bf524d4765257"]; //must be entered
 
-  // let fromToken = "0x29127fe04ffa4c32acac0ffe17280abd74eac313"; //must be entered
-  // let toTokens = ["0x55c08ca52497e2f1534b59e2917bf524d4765257", "0xdac17f958d2ee523a2206206994597c13d831ec7"]; //must be entered
+  // For testnet
+  // let fromToken = "0x8B6A212FBBD5eBc26f36a25e1E45D3088d70f4D0"; //must be entered
+  // let toTokens = ["0x32D168fc93A29C6A12D49e4316E4316dD6BD5b28", "0x46EbF7736b2FE2E4a79EdDBb2422fB86a21aE1b6"]; //must be entered
 
-  let fromToken = "0x8B6A212FBBD5eBc26f36a25e1E45D3088d70f4D0"; //must be entered
-  let toTokens = ["0x32D168fc93A29C6A12D49e4316E4316dD6BD5b28", "0x46EbF7736b2FE2E4a79EdDBb2422fB86a21aE1b6"]; //must be entered
-
-  let exchangeRates = [ethers.BigNumber.from(2).mul(ethers.BigNumber.from(10).pow(6)), ethers.BigNumber.from(3).mul(ethers.BigNumber.from(10).pow(18))]; //must be entered
+  let exchangeRates = [ethers.BigNumber.from(40).mul(ethers.BigNumber.from(10).pow(6)), ethers.BigNumber.from(10).mul(ethers.BigNumber.from(10).pow(18))]; //must be entered
   const Redemption = await hre.ethers.getContractFactory("Redemption");
-  const redemption = await Redemption.deploy(fromToken, toTokens, exchangeRates);
+
+  const redemption = await Redemption.deploy(fromToken, toTokens, exchangeRates, {gasLimit: 3000000});
 
   await redemption.deployed();
-
-  console.log('Gas used:', redemption.gasUsed.toString());
 
   console.log(
     `Deployed to ${redemption.address}`

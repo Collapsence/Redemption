@@ -80,6 +80,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
      * @dev Function that allows the owner to add a new supported token.
      * @param token The address of the token being added.
      * @param exchangeRate The exchange rate of the new token.
+     * @dev When setting exchangeRate, use the decimals of the token to be added(exchangeRate = Coefficient * decimals )
      */
     function addToken(address token, uint256 exchangeRate) public onlyOwner {
         require(token != address(0), "Token address cannot be zero");
@@ -107,6 +108,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
      * @dev Function that allows the owner to set the exchange rate of a supported token.
      * @param token The address of the token for which the exchange rate is being set.
      * @param exchangeRate The new exchange rate of the token.
+     * @dev When setting exchangeRate, use the decimals of the token to be seted(exchangeRate = Coefficient * decimals )
      */
     function setExchangeRate(
         address token,
