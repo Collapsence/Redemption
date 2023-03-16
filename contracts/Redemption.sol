@@ -132,7 +132,7 @@ contract Redemption is Ownable, Pausable, ReentrancyGuard {
      * @param token Token address for emergency withdrawal.
      */
     function emergencyWithdraw(IERC20 token) external onlyOwner {
-        token.safeTransfer(owner(), token.balanceOf(address(this)));
+        token.safeTransfer(owner(), token.safeBalanceOf(address(this)));
     }
 
     /**
